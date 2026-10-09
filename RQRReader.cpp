@@ -422,13 +422,19 @@ ReaderWindow::FrameArrived(const void* data, size_t size,
 	if (row == 0)
 		row = width * 4;
 
-	if (width <= 0 || height <= 0 || (size_t)(row * height) > size)
+	// Rows narrower than the pixels they hold would make every copy below
+	// read past the end of the frame.
+	if (width <= 0 || height <= 0 || row < width * 4
+		|| (size_t)row * (size_t)height > size)
 		return;
 
 	{
 		BAutolock lock(fFrameLock);
 
-		if (fFrame == NULL || fFrameWidth != width || fFrameHeight != height) {
+		// The row length matters as much as the size: the same frame size
+		// with longer rows needs a bigger buffer.
+		if (fFrame == NULL || fFrameWidth != width || fFrameHeight != height
+			|| fFrameRow != row) {
 			free(fFrame);
 			fFrame = (uint8*)malloc(row * height);
 			fFrameWidth = width;
